@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <sys/stat.h>
+
 #include "util.h"
 
 void printType(int type) {

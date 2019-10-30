@@ -1,14 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
+
 #include <dirent.h>
+#include <sys/stat.h>
+
+#include <unistd.h>
+#include <sys/ioctl.h>
 #include <time.h>
-#include <pwd.h>
 #include <grp.h>
+#include <pwd.h>
 
 #include "util.h"
 #include "files.h"
@@ -34,8 +35,40 @@
 #define COLOR_STRIKE printf("\033[9m")
 #define COLOR_OFF printf("\033[0m")
 
-void printL(struct stat st, int size_length, int owner_length, int group_length, int link_size);
 void do_ls_args(char *dirname, char *args, char multi);
+void printL(struct stat st, int size_length, int owner_length, int group_length, int link_size);
+
+int main(int argc, char **argv) {
+    chdir(getcwd(NULL, 0));	// Set current directory
+
+    int opt = 0;
+    char *args = (char *) malloc(16 * sizeof(char));	// Allocate args string
+    while((opt = getopt(argc, argv, "laf")) != -1) {	// Get all option arguments
+        switch (opt) {
+            case 'l':		// List mode
+                strcat(args, "l");
+                break;
+            case 'a':		// Show all files
+                strcat(args, "a");
+                break;
+            case 'f':		// Label directories with a '/'
+                strcat(args, "f");
+                break;
+            default:		// Invalid argument
+                exit(-1);
+        }
+    }
+    if (optind != argc) {	// If directory(s) specified
+        for (; optind < argc; optind++) {
+            do_ls_args(argv[optind], args, 1);	// Run ls on each directory
+        }
+    }
+    else {					// Otherwise
+        do_ls_args(".", args, 0);				// Run ls on current directory
+    }
+
+    return(0);
+}
 
 // Takes the directory, the arguments, and a boolean to show the directory name
 void do_ls_args(char *dirname, char *args, char multi) {
@@ -99,7 +132,7 @@ void do_ls_args(char *dirname, char *args, char multi) {
         
         // If list mode, print file details
         if (HAS_ARG('l')) {
-            printL(result.files[i], size_length, owner_length, group_length, line_length);
+            printL(result.files[i], size_length, owner_length, group_length, link_size);
         }
 
         // File Name
@@ -220,36 +253,4 @@ void printL(struct stat st, int size_length, int owner_length, int group_length,
     COLOR_YELLOW;
     printf("%s ", buffer);
     COLOR_DEFAULT;
-}
-
-int main(int argc, char **argv) {
-    chdir(getcwd(NULL, 0));	// Set current directory
-
-    int opt = 0;
-    char *args = (char *) malloc(16 * sizeof(char));	// Allocate args string
-    while((opt = getopt(argc, argv, "laf")) != -1) {	// Get all option arguments
-        switch (opt) {
-            case 'l':		// List mode
-                strcat(args, "l");
-                break;
-            case 'a':		// Show all files
-                strcat(args, "a");
-                break;
-            case 'f':		// Label directories with a '/'
-                strcat(args, "f");
-                break;
-            default:		// Invalid argument
-                exit(-1);
-        }
-    }
-    if (optind != argc) {	// If directory(s) specified
-        for (optind; optind < argc; optind++) {
-            do_ls_args(argv[optind], args, 1);	// Run ls on each directory
-        }
-    }
-    else {					// Otherwise
-        do_ls_args(".", args, 0);				// Run ls on current directory
-    }
-
-    return(0);
 }
