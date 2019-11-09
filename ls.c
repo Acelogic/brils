@@ -36,14 +36,15 @@
 #define COLOR_OFF printf("\033[0m")
 
 void do_ls_args(char *dirname, char *args, char multi);
-void printL(struct stat st, int size_length, int owner_length, int group_length, int link_size);
+void printL(struct stat st, int size_length, int owner_length, int group_length, int link_size, bool mode);
 
 int main(int argc, char **argv) {
     chdir(getcwd(NULL, 0));	// Set current directory
 
     int opt = 0;
     char *args = (char *) malloc(16 * sizeof(char));	// Allocate args string
-    while((opt = getopt(argc, argv, "laf")) != -1) {	// Get all option arguments
+    while((opt = getopt(argc, argv, "lafh")) != -1) {	// Get all option arguments
+    const char *humanSize(unsigned long long int bytes);
         switch (opt) {
             case 'l':		// List mode
                 strcat(args, "l");
@@ -54,6 +55,8 @@ int main(int argc, char **argv) {
             case 'f':		// Label directories with a '/'
                 strcat(args, "f");
                 break;
+            case 'h':       // Human Readable File Size
+                strcat(args, "h");          
             default:		// Invalid argument
                 exit(-1);
         }
@@ -63,7 +66,7 @@ int main(int argc, char **argv) {
             do_ls_args(argv[optind], args, 1);	// Run ls on each directory
         }
     }
-    else {					// Otherwise
+    else {					                    // Otherwise
         do_ls_args(".", args, 0);				// Run ls on current directory
     }
 
@@ -132,9 +135,15 @@ void do_ls_args(char *dirname, char *args, char multi) {
         
         // If list mode, print file details
         if (HAS_ARG('l')) {
-            printL(result.files[i], size_length, owner_length, group_length, link_size);
+            if(HAS_ARG('h')){ 
+                printL(result.files[i], size_length, owner_length, group_length, link_size, 0);
+            }
+            else
+            {
+                printL(result.files[i], size_length, owner_length, group_length, link_size, 1);
+            }    
         }
-
+      
         // File Name
         COLOR_OFF;
 
@@ -201,9 +210,28 @@ void do_ls_args(char *dirname, char *args, char multi) {
     }
 }
 
-void printL(struct stat st, int size_length, int owner_length, int group_length, int link_size) {
+ const char *humanSize(unsigned long long int bytes)
+{
+	char *suffix[] = {"B", "KB", "MB", "GB", "TB", "PB", "EB"};
+	char length = sizeof(suffix) / sizeof(suffix[0]);
+
+	int i = 0;
+	double dblBytes = bytes;
+
+	if (bytes > 1024) {
+		for (i = 0; (bytes / 1024) > 0 && i<length-1; i++, bytes /= 1024)
+			dblBytes = bytes / 1024;
+	}
+
+	static char output[200];
+	sprintf(output, "%.00lf%s", dblBytes, suffix[i]);
+	return output;
+}
+
+
+void printL(struct stat st, int size_length, int owner_length, int group_length, int link_size, bool mode) {
     // Permissions (octal)
-    int perms = (st.st_mode & S_IRUSR)
+    int perms =   (st.st_mode & S_IRUSR)
                 | (st.st_mode & S_IWUSR)
                 | (st.st_mode & S_IXUSR)
                 | (st.st_mode & S_IRGRP)
@@ -242,10 +270,19 @@ void printL(struct stat st, int size_length, int owner_length, int group_length,
     printf("%-*s", group_length + 1, getgrgid(st.st_gid) -> gr_name);
     COLOR_DEFAULT;
 
+    
+    if(mode == 0){ 
     // File Size
     COLOR_RED;
     printf("%*llu ", size_length, (unsigned long long int) st.st_size);
     COLOR_DEFAULT;
+    }
+    else { 
+     // File Size Human Readable
+     COLOR_RED;
+     printf("%*s ", size_length, humanSize( (unsigned long long int) st.st_size));
+     COLOR_DEFAULT; 
+    }
 
     // Last Modification Date
     char buffer[16];

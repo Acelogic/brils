@@ -10,3 +10,5 @@ void printPerms(int perm);
 int getDigits(unsigned long long num);
 
 #endif //BRILS_UTIL_H
+
+
